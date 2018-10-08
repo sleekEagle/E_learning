@@ -1,0 +1,325 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Aug 20 10:09:25 2018
+
+@author: sleek_eagle
+"""
+
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Apr 17 17:00:42 2018
+
+@author: sleek_eagle
+"""
+
+ 
+import pygame
+import math
+import random
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import copy
+
+
+from operations import unwrapFeatures
+from operations import getAngle
+from sklearn.externals import joblib
+from sklearn import preprocessing
+from sklearn.neural_network import MLPRegressor
+from operations import getAngleFromCoords
+
+from pathfinding.core.diagonal_movement import DiagonalMovement
+from pathfinding.core.grid import Grid
+from pathfinding.finder.a_star import AStarFinder
+from pathfinding.finder.breadth_first import BreadthFirstFinder
+
+
+
+
+# Colors
+BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
+BLUE = (50, 50, 255)
+RED = (255, 0, 0)
+YELLOW = (255, 255, 0)
+COLORS = [BLACK,WHITE,BLUE,RED,YELLOW]
+ 
+
+
+# Screen dimensions
+SCREEN_WIDTH = 500
+SCREEN_HEIGHT = 700
+ 
+#agents
+NUM_AGENTS=10
+AGENT_SIZE=15 #here width = height for simplicity
+MAX_VELO = 5000 # this is in mm
+
+
+
+MAP_PATH = "/home/sleek_eagle/research/gameTheory/E learning/map.txt"
+#read the low res map from file
+def readMap():
+    mapList = []
+    file = open(MAP_PATH, 'r') 
+    for line in file:
+        if (len(line) > 1):
+            chars = list(line)
+            nums = []
+            for i in range(0,len(chars)):
+                if (chars[i].isdigit()):
+                    nums.append(int(chars[i]))        
+            mapList.append(nums)
+    return mapList
+
+#expand the low res map to fit into the screen
+def createWalls(mapList):
+    square_walls = []
+    #calculate scale in y axis
+    yscale = SCREEN_HEIGHT/len(mapList)
+    if(len(mapList) > 0):
+        xscale = SCREEN_WIDTH/len(mapList[0])
+    else:
+        print("data is not consistant!")
+        return
+    
+    for i in range(len(mapList)):
+        for j in range(len(mapList[i])):
+            if (mapList[i][j] == 1):
+                wall = Wall((j*xscale),(i*yscale), xscale, yscale)
+                square_walls.append(wall)
+    return square_walls
+
+#calculate distance to goal to calculate reward
+def findDistToGoal(mapList,pos,goal):
+    #invert map for A* purposes. In this library, 0 is obstacle 1 is free. so invert
+    mapMatrix = np.ones((len(mapList),len(mapList[0])))
+    for i in range(0,len(mapList)):
+        for j in range(0,len(mapList[0])):
+            if (mapList[i][j] == 0):
+                mapMatrix[i][j] = 1
+            else:
+                mapMatrix[i][j] = 0
+            
+    grid = Grid(matrix = mapMatrix)
+    start = grid.node(pos[1],pos[0])
+    end = grid.node(goal[1],goal[0])
+    finder = AStarFinder(diagonal_movement=DiagonalMovement.never)
+        
+    path, runs = finder.find_path(start, end, grid)
+    print(grid.grid_str(path=path, start=start, end=end))
+    print(path)
+    dist = 0
+    if (len(path) > 2):
+        dist = len(path)-1
+    elif (len(path) == 2):
+        dist = 1
+    else:
+        dist = -1
+    return dist
+
+def getPixcelRectFromMapCoords(coords):
+    left = GRID_WIDTH*coords[1]
+    top = GRID_HEIGHT*coords[0]
+    rect = pygame.Rect(left,top,GRID_WIDTH,GRID_HEIGHT)
+    return rect
+    
+
+class Point(pygame.sprite.Sprite):
+    # Constructor function
+    def __init__(self,rect,col):
+        # Call the parent's constructor
+        super().__init__()
+        [x,y] = [rect.left,rect.top]
+        # Set height, width
+        self.image = pygame.Surface([rect.width, rect.width])
+        self.image.fill(col)
+ 
+        # Make our top-left corner the passed-in location.
+        self.rect = self.image.get_rect()
+        self.rect.y = y
+        self.rect.x = x
+ 
+        
+class Agent(pygame.sprite.Sprite):
+ 
+    # Constructor function
+    def __init__(self,rect,col):
+        # Call the parent's constructor
+        super().__init__()
+        [x,y] = [rect.left,rect.top]
+        # Set height, width
+        self.image = pygame.Surface([rect.width, rect.width])
+        self.image.fill(col)
+ 
+        # Make our top-left corner the passed-in location.
+        self.rect = self.image.get_rect()
+        self.rect.y = y
+        self.rect.x = x
+ 
+        self.goalPos = 0
+        self.reached_goal = False
+        self.action = 4
+    
+    #actions 0-left,1-right,2-up,3-down,4-stay
+    def setAction(action):
+        self.action = action
+    def setGoal(goalPos):
+        self.goalPos = goalPos
+        
+    def update(self):
+        if (self.action == 0):
+            #move left
+            self.rect.x -= GRID_WIDTH
+        elif (self.action == 1):
+            #move right
+            self.rect.x += GRID_WIDTH
+        elif (self.action == 2):
+            #move up
+            self.rect.x += GRID_HEIGHT
+        elif(self.action == 3):
+            #move down
+            self.rect.x -= GRID_HEIGHT
+            
+            
+
+class Wall(pygame.sprite.Sprite):
+    """ Wall the player can run into. """
+    def __init__(self, x, y, width, height):
+        """ Constructor for the wall that the player can run into. """
+        # Call the parent's constructor
+        super().__init__()
+ 
+        # Make a blue wall, of the size specified in the parameters
+        self.image = pygame.Surface([width, height])
+        self.image.fill(BLUE)
+ 
+        # Make our top-left corner the passed-in location.
+        self.rect = self.image.get_rect()
+        self.rect.y = y
+        self.rect.x = x
+        
+
+def isOccupied(rect):   
+    #now check other players and walls 
+    sprites = all_sprite_list.sprites() 
+    for i in range(0,len(sprites)):
+        if(rect.colliderect(sprites[i].rect)):
+            return True
+    return False
+
+def initAgent(pos,col):
+     initRect = getPixcelRectFromMapCoords(pos)
+     agent = Agent(initRect,col)
+     return [agent]
+
+def createPlayers(playerPos,goals):
+    for i in range(0,len(playerPos)):
+        agent = initAgent(playerPos[i],COLORS[3+i])
+        all_sprite_list.add(agent)
+    
+def chooseGoals(mapList):
+    width  = len(mapList[0])-2 #minus 2 because of wall width. walls surround the map like Vatican city
+    height = len(mapList)-2
+    #goal positions are in the top and bottom most empty cells
+    goalPos =  [[1,random.randint(0,width-1)],[5,random.randint(0,width-1)]]
+    return goalPos    
+
+def choosePlayerInitPos(mapList):
+    playerPos = []
+    width  = len(mapList[0])
+    height = len(mapList)
+    #player initial positions are any two random empty positions on the map
+    #first find an empty spot
+    for i in range(0,2):
+        x = random.randint(0,width-1)
+        y = random.randint(0,height-1)
+        isRecorded = False
+        for i in range(0,len(playerPos)):
+            if((playerPos[i][0] == y) and (playerPos[i][1] == x)):
+                isRecorded = True
+                
+        while((mapList[y][x] == 1) or (isRecorded)):
+            x = random.randint(0,width-1)
+            y = random.randint(0,height-1)
+        playerPos.append([y,x])
+    return playerPos
+        
+def getPossibleActions(mapList,pos):
+    x,y = pos[1],pos[0]
+    left,right,up,down,stay = 0,0,0,0,1
+    if(not((x-1) < 0)):
+        if(mapList[y][x-1] == 0):
+            left = 1
+    if(not((x+1) >= len(mapList[0]))):
+        if(mapList[y][x+1] == 0):
+            right = 1
+    if(not((y-1) < 0)):
+        if(mapList[y-1][x] == 0):
+            down = 1
+    if(not((y+1) >= len(mapList))):
+        if(mapList[y+1][x] == 0):
+            up = 1
+    return left,right,up,down,stay
+    
+          
+# Call this function so the Pygame library can initialize itself
+pygame.init()    
+screen = pygame.display.set_mode([SCREEN_WIDTH, SCREEN_HEIGHT])    
+# Set the title of the window
+pygame.display.set_caption('Skynet')
+ 
+# List to hold all the sprites
+all_sprite_list = pygame.sprite.Group()
+ 
+# Make the walls. (x_pos, y_pos, width, height)
+wall_list = pygame.sprite.Group()
+
+#read low res map from file
+mapList = readMap()
+#create scales version of walls from the low res map data
+wallList = createWalls(mapList)
+
+for i in range(0,len(wallList)):
+    wall_list.add(wallList[i])
+    all_sprite_list.add(wallList[i])
+ 
+goals = chooseGoals(mapList)
+playerPos = choosePlayerInitPos(mapList)
+#two more global variables
+GRID_WIDTH = SCREEN_WIDTH/len(mapList[0])
+GRID_HEIGHT = SCREEN_HEIGHT/len(mapList)
+
+
+createPlayers(playerPos,goals)
+ 
+clock = pygame.time.Clock()
+ 
+done = False
+
+
+while not done:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            done = True
+    #predict velocities and headings from the NN
+    #update them
+    #yey!
+    print("runnning..")
+    all_sprite_list.update()
+ 
+    screen.fill(BLACK)
+ 
+    all_sprite_list.draw(screen)
+ 
+    pygame.display.flip()
+    #printAgentData()
+ 
+    clock.tick(10)
+ 
+pygame.quit()
+
+
