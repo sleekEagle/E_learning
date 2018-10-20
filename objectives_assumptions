@@ -1,0 +1,45 @@
+*******
+Main Objective
+***********
+Create a robot that can move among a crowd in a human-like manner
+
+
+************
+main techniques to use
+************
+inverse reinforcement learning
+Here, we observe how real people move among a crown and try to understand their reward functions
+For this research in particular, we can use multi agent inverse reinforcement learning. 
+Researchers have done this. 
+
+**************
+things which I need to learn
+*************
+inverse reinforcement learning
+multi agent inverse reinforcement learning
+
+*************'
+What I have done so far
+*************
+1. create a simple multi agent reinforcement learnign experiment and 
+showed that empathical multi agent reinforcement learning can exist. 
+But this is not a regorous proof!
+
+2. 
+
+*************
+hypothesist
+**************
+incorporating empathy into the reinforcement learning will improve the 
+human-likeness of the robot motion.
+
+********************
+how to test this hypothesis ?
+********************
+1. find a dataset of people moving and interacting with each other. 
+2. develop a inverse multi agent reinforcement learning algorithm which incorporates
+    empathy. I can extend the earlier simpler version.
+3. Learn from how the people move. And try to predic their motion
+4. compare with the existing result from the literature. 
+5. Be happy
+ 

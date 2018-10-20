@@ -63,7 +63,7 @@ LEFT,RIGHT,UP,DOWN,STAY = 0,1,2,3,4
 
 
 
-MAP_PATH = "/home/sleek_eagle/research/gameTheory/E_learning/opposite_pass/map.txt"
+MAP_PATH = "/home/sleek_eagle/research/gameTheory/E_learning/map.txt"
 #read the low res map from file
 def readMap():
     mapList = []
@@ -117,7 +117,6 @@ def get_actions_taken(state,next_state,actions):
         n += 1
         isSame = True
     return actions_taken
-    
 
 #calculate distance to goal to calculate reward
 def findDistToGoal(mapList,pos,goal):
@@ -168,7 +167,6 @@ def check_reached_goals(state):
     is_agent2 = True
   
   return is_agent1,is_agent2
-  
 
 #I am both players! I can be at two places at onece!!! (semi-omniprecense)  
 def get_next_state_and_selfish_reward(state,player1_action,player2_action):
@@ -481,13 +479,10 @@ def init_simulation():
 
   
   
-def init_agents(random):
+def init_agents():
   global goals
   goals = chooseGoals(mapList)
-  if (random):
-    playerPos = choosePlayerInitPos_rand(mapList)
-  else:
-    playerPos = choosePlayerInitPos(mapList)
+  playerPos = choosePlayerInitPos(mapList)
   global agents
   agents = createPlayers(playerPos,goals)
   return agents
