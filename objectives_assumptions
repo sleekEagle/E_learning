@@ -1,7 +1,15 @@
+***************
+Main Goal
+*************
+Create an assistive robot that takes care of a person
+e.g : elderly person
+
+
 *******
-Main Objective
+Main Objective for this research (may be for a single paper)  
 ***********
 Create a robot that can move among a crowd in a human-like manner
+for now I am not considering the accompnying person
 
 
 ************
@@ -28,10 +36,20 @@ But this is not a regorous proof!
 2. 
 
 *************
-hypothesist
+hypothesis
 **************
 incorporating empathy into the reinforcement learning will improve the 
 human-likeness of the robot motion.
+
+*****************
+Assumptions
+***************
+choose one/many from below:
+
+1. the robot will be operating in an elder-care home ?
+2. in a shopping mall which helps a person to shop
+3. in a shopping mall/supermarket which helps customers in general (quite different from initial objective)
+4. A robot which accompany a person in crowded area. eg. shoping mall, city centre
 
 ********************
 how to test this hypothesis ?
